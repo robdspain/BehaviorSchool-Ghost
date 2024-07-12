@@ -3,6 +3,12 @@ const path = require('path');
 const errors = require('@tryghost/errors');
 const imageTransform = require('@tryghost/image-transform');
 
+const {customAlphabet} = require('nanoid');
+const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const nanoid = customAlphabet(alphabet, 10);
+const nanoidSuffixRegex = /^.*(_[a-zA-Z0-9]{10})$/;
+const generateSuffix = () => `_${nanoid()}`;
+
 const storage = require('../../adapters/storage');
 const config = require('../../../shared/config');
 
@@ -23,6 +29,19 @@ const controller = {
 
             // Trim _o from file name (not allowed suffix)
             frame.file.name = frame.file.name.replace(/_o(\.\w+?)$/, '$1');
+
+            // Add a random suffix to the image name before the extension. If
+            // the image already has a suffix, replace it with a new one. This
+            // removes the ability to guess the path of the source image when
+            // the upload is an edit of an existing image
+            const fileNameInfo = path.parse(frame.file.name);
+            const currentNanoid = nanoidSuffixRegex.exec(fileNameInfo.name);
+
+            if (currentNanoid) {
+                frame.file.name = frame.file.name.replace(currentNanoid[1], generateSuffix());
+            } else {
+                frame.file.name = `${fileNameInfo.name}${generateSuffix()}${fileNameInfo.ext}`;
+            }
 
             // CASE: image transform is not capable of transforming file (e.g. .gif)
             if (imageTransform.shouldResizeFileExtension(frame.file.ext) && imageOptimizationOptions.resize) {
