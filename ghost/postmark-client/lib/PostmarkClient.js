@@ -129,7 +129,7 @@ module.exports = class PostmarkClient extends MailAdapterBase {
      * @param {ServerClient} postmarkInstance
      * @param {Date} startTime
      */
-    async getEventsFromPostmark(postmarkInstance, startTime) {
+    async getEvents(postmarkInstance, startTime) {
         try {
             const page = await postmarkInstance.getMessageOpens();
             metrics.metric('postmark-get-events', {
