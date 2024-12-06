@@ -10,9 +10,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.declaration.json && vite build",
-    "prepare": "yarn build",
+    "postinstall": "yarn build",
     "test": "yarn test:unit",
-    "test:unit": "yarn test:types && yarn nx build && vitest run",
+    "test:unit": "yarn test:types && yarn dlx nx build && vitest run",
     "test:types": "tsc --noEmit",
     "lint:code": "eslint --ext .js,.ts,.cjs,.tsx src/ --cache",
     "lint": "yarn lint:code && yarn lint:test",
@@ -58,7 +58,8 @@
     "typescript": "5.4.5",
     "validator": "13.12.0",
     "vite": "4.5.3",
-    "vite-plugin-svgr": "3.3.0"
+    "vite-plugin-svgr": "3.3.0",
+    "vitest": "0.34.3"
   },
   "dependencies": {
     "@dnd-kit/core": "6.1.0",

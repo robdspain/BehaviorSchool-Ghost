@@ -44,7 +44,7 @@
     "main": "yarn main:monorepo && yarn main:submodules",
     "main:monorepo": "git checkout main && git pull ${GHOST_UPSTREAM:-origin} main && yarn",
     "main:submodules": "git submodule sync && git submodule update && git submodule foreach \"git checkout main && git pull ${GHOST_UPSTREAM:-origin} main\"",
-    "prepare": "husky install .github/hooks",
+    "postinstall": "husky install .github/hooks",
     "tb": "docker run --rm -v $(pwd):/ghost -w /ghost/ghost/tinybird -it tinybirdco/tinybird-cli-docker",
     "tb:update": "docker pull tinybirdco/tinybird-cli-docker"
   },
@@ -53,7 +53,13 @@
     "@tryghost/logging": "2.4.18",
     "jackspeak": "2.1.1",
     "moment": "2.24.0",
-    "moment-timezone": "0.5.45"
+    "moment-timezone": "0.5.45",
+    "cheerio@^1.0.0-rc.2": "1.0.0-rc.12",
+    "cheerio@^1.0.0-rc.12": "1.0.0-rc.12",
+    "vite": "4.5.3",
+    "vitest": "0.34.3",
+    "ember-basic-dropdown": "6.0.2",
+    "ember-in-viewport": "4.1.0"
   },
   "renovate": {
     "extends": [
@@ -116,11 +122,20 @@
   },
   "devDependencies": {
     "@actions/core": "1.11.1",
+    "@kapouer/eslint-plugin-no-return-in-loop": "1.0.0",
+    "@typescript-eslint/eslint-plugin": "6.9.1",
+    "@typescript-eslint/parser": "6.9.1",
     "chalk": "4.1.2",
     "concurrently": "8.2.2",
     "eslint": "8.44.0",
+    "eslint-plugin-ember": "11.11.1",
+    "eslint-plugin-filenames": "allouis/eslint-plugin-filenames#15dc354f4e3d155fc2d6ae082dbfc26377539a18",
     "eslint-plugin-ghost": "3.4.0",
+    "eslint-plugin-mocha": "7.0.1",
+    "eslint-plugin-n": "16.2.0",
     "eslint-plugin-react": "7.33.0",
+    "eslint-plugin-sort-imports-es6-autofix": "0.6.0",
+    "eslint-plugin-unicorn": "42.0.0",
     "husky": "8.0.3",
     "inquirer": "8.2.6",
     "lint-staged": "15.2.10",
@@ -128,5 +143,6 @@
     "rimraf": "5.0.10",
     "ts-node": "10.9.2",
     "typescript": "5.4.5"
-  }
+  },
+  "packageManager": "yarn@4.5.3"
 }
