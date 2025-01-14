@@ -8,12 +8,12 @@ import APAvatar from './global/APAvatar';
 import ActivityItem from './activities/ActivityItem';
 import FollowButton from './global/FollowButton';
 import MainNavigation from './navigation/MainNavigation';
+import Separator from './global/Separator';
 
 import NiceModal from '@ebay/nice-modal-react';
 import ViewProfileModal from './modals/ViewProfileModal';
 
-import Separator from './global/Separator';
-
+import {type Account} from '../api/activitypub';
 import {useSearchForUser, useSuggestedProfiles} from '../hooks/useActivityPubQueries';
 
 interface SearchResultItem {
@@ -24,44 +24,44 @@ interface SearchResultItem {
     isFollowing: boolean;
 }
 
-interface SearchResultProps {
-    result: SearchResultItem;
-    update: (id: string, updated: Partial<SearchResultItem>) => void;
+interface SearchResultAccountProps {
+    account: Account;
+    update: (id: string, updated: Partial<Account>) => void;
 }
 
-const SearchResult: React.FC<SearchResultProps> = ({result, update}) => {
+const SearchResultAccount: React.FC<SearchResultAccountProps> = ({account, update}) => {
     const onFollow = () => {
-        update(result.actor.id!, {
-            isFollowing: true,
-            followerCount: result.followerCount + 1
+        update(account.id!, {
+            followedByMe: true,
+            followerCount: account.followerCount + 1
         });
     };
 
     const onUnfollow = () => {
-        update(result.actor.id!, {
-            isFollowing: false,
-            followerCount: result.followerCount - 1
+        update(account.id!, {
+            followedByMe: false,
+            followerCount: account.followerCount - 1
         });
     };
 
     return (
         <ActivityItem
-            key={result.actor.id}
+            key={account.id}
             onClick={() => {
-                NiceModal.show(ViewProfileModal, {profile: result, onFollow, onUnfollow});
+                NiceModal.show(ViewProfileModal, {profile: account, onFollow, onUnfollow});
             }}
         >
-            <APAvatar author={result.actor}/>
+            <APAvatar author={account.actor}/>
             <div>
                 <div className='text-grey-600'>
-                    <span className='font-bold text-black'>{result.actor.name} </span>{result.handle}
+                    <span className='font-bold text-black'>{account.actor.name} </span>{account.handle}
                 </div>
-                <div className='text-sm'>{new Intl.NumberFormat().format(result.followerCount)} followers</div>
+                <div className='text-sm'>{new Intl.NumberFormat().format(account.followerCount)} followers</div>
             </div>
             <FollowButton
                 className='ml-auto'
-                following={result.isFollowing}
-                handle={result.handle}
+                following={account.followedByMe}
+                handle={account.handle}
                 type='link'
                 onFollow={onFollow}
                 onUnfollow={onUnfollow}
@@ -70,16 +70,16 @@ const SearchResult: React.FC<SearchResultProps> = ({result, update}) => {
     );
 };
 
-const SearchResults: React.FC<{
-    results: SearchResultItem[];
-    onUpdate: (id: string, updated: Partial<SearchResultItem>) => void;
-}> = ({results, onUpdate}) => {
+const SearchResultAccounts: React.FC<{
+    accounts: Account[];
+    onUpdate: (id: string, updated: Partial<Account>) => void;
+}> = ({accounts, onUpdate}) => {
     return (
         <>
-            {results.map(result => (
-                <SearchResult
-                    key={result.actor.id}
-                    result={result}
+            {accounts.map(account => (
+                <SearchResultAccount
+                    key={account.id}
+                    account={account}
                     update={onUpdate}
                 />
             ))}
@@ -130,10 +130,10 @@ const Search: React.FC<SearchProps> = ({}) => {
     const queryInputRef = useRef<HTMLInputElement>(null);
     const [query, setQuery] = useState('');
     const [debouncedQuery] = useDebounce(query, 300);
-    const {searchQuery, updateProfileSearchResult: updateResult} = useSearchForUser('index', query !== '' ? debouncedQuery : query);
+    const {searchQuery, updateSearchResultAccount: updateResult} = useSearchForUser('index', query !== '' ? debouncedQuery : query);
     const {data, isFetching, isFetched} = searchQuery;
 
-    const results = data?.profiles || [];
+    const results = data?.accounts || [];
     const showLoading = isFetching && query.length > 0;
     const showNoResults = !isFetching && isFetched && results.length === 0 && query.length > 0 && debouncedQuery === query;
     const showSuggested = query === '' || (isFetched && results.length === 0);
@@ -188,8 +188,8 @@ const Search: React.FC<SearchProps> = ({}) => {
                 )}
 
                 {!showLoading && !showNoResults && (
-                    <SearchResults
-                        results={results as SearchResultItem[]}
+                    <SearchResultAccounts
+                        accounts={results}
                         onUpdate={updateResult}
                     />
                 )}

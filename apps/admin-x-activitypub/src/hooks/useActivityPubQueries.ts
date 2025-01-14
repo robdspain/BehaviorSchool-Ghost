@@ -1,5 +1,12 @@
 import {Activity} from '../components/activities/ActivityItem';
-import {ActivityPubAPI, ActivityPubCollectionResponse, ActivityThread, type Profile, type SearchResults} from '../api/activitypub';
+import {
+    ActivityPubAPI,
+    ActivityPubCollectionResponse,
+    ActivityThread,
+    type Account,
+    type Profile,
+    type SearchResults
+} from '../api/activitypub';
 import {type UseInfiniteQueryResult, useInfiniteQuery, useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 
 let SITE_URL: string;
@@ -331,7 +338,7 @@ export function useSearchForUser(handle: string, query: string) {
         }
     });
 
-    const updateProfileSearchResult = (id: string, updated: Partial<Profile>) => {
+    const updateSearchResultAccount = (id: string, updated: Partial<Account>) => {
         queryClient.setQueryData(queryKey, (current: SearchResults | undefined) => {
             if (!current) {
                 return current;
@@ -339,8 +346,8 @@ export function useSearchForUser(handle: string, query: string) {
 
             return {
                 ...current,
-                profiles: current.profiles.map((item: Profile) => {
-                    if (item.actor.id === id) {
+                accounts: current.accounts.map((item: Account) => {
+                    if (item.id === id) {
                         return {...item, ...updated};
                     }
                     return item;
@@ -349,7 +356,7 @@ export function useSearchForUser(handle: string, query: string) {
         });
     };
 
-    return {searchQuery, updateProfileSearchResult};
+    return {searchQuery, updateSearchResultAccount};
 }
 
 export function useSuggestedProfiles(handle: string, limit = 3) {

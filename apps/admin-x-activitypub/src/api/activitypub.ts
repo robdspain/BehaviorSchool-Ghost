@@ -12,8 +12,23 @@ export interface Profile {
     isFollowing: boolean;
 }
 
+export interface Account {
+    id: string | null;
+    name: string | null;
+    handle: string;
+    bio: string;
+    url: string | null;
+    avatarUrl: string | null;
+    bannerUrl: string | null;
+    customFields: Record<string, string>;
+    followingCount: number;
+    followerCount: number;
+    followsMe: boolean;
+    followedByMe: boolean;
+}
+
 export interface SearchResults {
-    profiles: Profile[];
+    accounts: Account[];
 }
 
 export interface ActivityThread {
@@ -291,12 +306,12 @@ export class ActivityPubAPI {
 
         const json = await this.fetchJSON(url, 'GET');
 
-        if (json && 'profiles' in json) {
+        if (json && 'accounts' in json) {
             return json as SearchResults;
         }
 
         return {
-            profiles: []
+            accounts: []
         };
     }
 
