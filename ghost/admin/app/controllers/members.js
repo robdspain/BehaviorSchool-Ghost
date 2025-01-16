@@ -3,6 +3,7 @@ import BulkDeleteMembersModal from '../components/members/modals/bulk-delete';
 import BulkRemoveMembersLabelModal from '../components/members/modals/bulk-remove-label';
 import BulkUnsubscribeMembersModal from '../components/members/modals/bulk-unsubscribe';
 import Controller from '@ember/controller';
+import fetch from 'fetch';
 import ghostPaths from 'ghost-admin/utils/ghost-paths';
 import moment from 'moment-timezone';
 import {A} from '@ember/array';
@@ -369,12 +370,24 @@ export default class MembersController extends Controller {
     }
 
     @action
-    exportData() {
+    async exportData() {
         let exportUrl = ghostPaths().url.api('members/upload');
         let downloadParams = new URLSearchParams(this.getApiQueryObject());
         downloadParams.set('limit', 'all');
 
-        this.utils.downloadFile(`${exportUrl}?${downloadParams.toString()}`);
+        const response = await fetch(`${exportUrl}?${downloadParams.toString()}`);
+        const data = await response.json();
+        
+        if (data.url) {
+            const link = document.createElement('a');
+            link.href = data.url;
+            const datetime = (new Date()).toJSON().substring(0, 10);
+            link.download = `members.${datetime}.csv`;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     }
 
     @action
