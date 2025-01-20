@@ -47,6 +47,8 @@ class GhostServer {
      * @param {Number}  options.serverConfig.port
      * @param {Number}  options.serverConfig.shutdownTimeout
      * @param {Boolean} options.serverConfig.testmode
+     * @param {Number}  options.serverConfig.backlog
+     * @param {Boolean} options.serverConfig.noDelay
      */
     constructor({url, env, serverConfig}) {
         this.url = url;
@@ -74,13 +76,17 @@ class GhostServer {
         debug('Starting...');
         this.rootApp = rootApp;
 
-        const {host, port, testmode, shutdownTimeout} = this.serverConfig;
+        const {host, port, testmode, shutdownTimeout, backlog, noDelay} = this.serverConfig;
         const self = this;
 
         return new Promise(function (resolve, reject) {
             self.httpServer = rootApp.listen(
                 port,
-                host
+                host,
+                {
+                    backlog: backlog || 511,
+                    noDelay: noDelay || false
+                }
             );
 
             self.httpServer.on('error', function (error) {

@@ -7,6 +7,7 @@ const jobsService = require('../../../services/jobs');
 module.exports = function testRoutes() {
     const router = express.Router('testmode');
 
+    router.get('/200', (req, res) => res.sendStatus(200));
     router.get('/500', (req, res) => res.sendStatus(500));
     router.get('/400', (req, res) => res.sendStatus(400));
     router.get('/404', (req, res) => res.sendStatus(404));
