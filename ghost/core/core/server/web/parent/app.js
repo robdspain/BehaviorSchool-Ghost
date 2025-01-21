@@ -3,6 +3,7 @@ const config = require('../../../shared/config');
 const express = require('../../../shared/express');
 const compress = require('compression');
 const mw = require('./middleware');
+const {connectionMonitor, startMonitoring} = require('./middleware/connection-monitor');
 
 /**
  * @returns {import('express').Application}
@@ -10,6 +11,11 @@ const mw = require('./middleware');
 module.exports = function setupParentApp() {
     debug('ParentApp setup start');
     const parentApp = express('parent');
+
+    if (config.get('server:connectionMonitor')) {
+        parentApp.use(connectionMonitor);
+        startMonitoring();
+    }
 
     parentApp.use(mw.requestId);
     parentApp.use(mw.logRequest);
