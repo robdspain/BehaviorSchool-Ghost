@@ -23,20 +23,20 @@ module.exports = class LinkRedirectRepository {
         debug('Creating LinkRedirectRepository');
         this.#LinkRedirect = deps.LinkRedirect;
         this.#urlUtils = deps.urlUtils;
-        this.#cache = null;
-        if (deps.cacheAdapter !== null) {
-            debug('Caching enabled with adapter:', deps.cacheAdapter.constructor.name);
-            this.#cache = deps.cacheAdapter;
-            // This is a bit of a blunt instrument, but it's the best we can do for now
-            // It covers all the cases we would need to invalidate the links cache
-            // We need to invalidate the cache when:
-            // - a redirect is edited
-            // - a site's subdirectory is changed (rare)
-            // - analytics settings are changed
-            deps.EventRegistry.on('site.changed', () => {
-                this.#cache.reset();
-            });
-        }
+        this.#cache = new Map();
+        // if (deps.cacheAdapter !== null) {
+        //     debug('Caching enabled with adapter:', deps.cacheAdapter.constructor.name);
+        //     this.#cache = deps.cacheAdapter;
+        //     // This is a bit of a blunt instrument, but it's the best we can do for now
+        //     // It covers all the cases we would need to invalidate the links cache
+        //     // We need to invalidate the cache when:
+        //     // - a redirect is edited
+        //     // - a site's subdirectory is changed (rare)
+        //     // - analytics settings are changed
+        //     deps.EventRegistry.on('site.changed', () => {
+        //         this.#cache.reset();
+        //     });
+        // }
     }
 
     /**
@@ -159,7 +159,7 @@ module.exports = class LinkRedirectRepository {
 
         if (this.#cache) {
             const cachedLink = await this.#cache.get(from);
-            debug(`getByUrl ${url}: Cache ${cachedLink ? 'HIT' : 'MISS'}`);
+            console.log(`getByUrl ${url}: Cache ${cachedLink ? 'HIT' : 'MISS'}`);
             // Cache hit, serve from cache
             if (cachedLink) {
                 return this.#fromSerialized(cachedLink);

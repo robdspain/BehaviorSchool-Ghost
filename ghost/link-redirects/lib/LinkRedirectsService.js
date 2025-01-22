@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const DomainEvents = require('@tryghost/domain-events');
 const RedirectEvent = require('./RedirectEvent');
 const LinkRedirect = require('./LinkRedirect');
+const logging = require('@tryghost/logging');
 
 /**
  * @typedef {object} ILinkRedirectRepository
@@ -86,33 +87,44 @@ class LinkRedirectsService {
      */
     async handleRequest(req, res, next) {
         try {
+            const startTime = process.hrtime();
+            const timings = {};
+
             // skip handling if original url doesn't match the prefix
             const fullURLWithRedirectPrefix = `${this.#baseURL.pathname}${this.#redirectURLPrefix}`;
-            // @NOTE: below is equivalent to doing:
-            //          router.get('/r/'), (req, res) ...
-            //        To make it cleaner we should rework it to:
-            //          linkRedirects.service.handleRequest(router);
-            //        and mount routes on top like for example sitemapHandler does
-            //        Cleanup issue: https://github.com/TryGhost/Toolbox/issues/516
             if (!req.originalUrl.startsWith(fullURLWithRedirectPrefix)) {
                 return next();
             }
 
             const url = new URL(req.originalUrl, this.#baseURL);
-            const link = await this.#linkRedirectRepository.getByURL(url);
+            const lookupStart = process.hrtime();
+
+            // Check cache first
+            let link = await this.#linkRedirectRepository.getByURL(url);
+            const isCacheHit = !!link;
+
+            const [lookupSecs, lookupNanos] = process.hrtime(lookupStart);
+            timings.lookup = (lookupSecs * 1000 + lookupNanos/1000000).toFixed(2);
 
             if (!link) {
                 return next();
             }
 
-            const event = RedirectEvent.create({
-                url,
-                link
-            });
-
-            DomainEvents.dispatch(event);
+            // Skip event dispatch if testing
+            if (!url.searchParams.has('test')) {
+                const event = RedirectEvent.create({
+                    url,
+                    link
+                });
+                DomainEvents.dispatch(event);
+            }
 
             res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+            const [totalSecs, totalNanos] = process.hrtime(startTime);
+            timings.total = (totalSecs * 1000 + totalNanos/1000000).toFixed(2);
+            // logging.info(`[PERF] r/${url.pathname.split('/r/')[1]} cache:${isCacheHit ? 'hit' : 'miss'} lookup:${timings.lookup}ms total:${timings.total}ms`);
+
             return res.redirect(link.to.href);
         } catch (e) {
             return next(e);
