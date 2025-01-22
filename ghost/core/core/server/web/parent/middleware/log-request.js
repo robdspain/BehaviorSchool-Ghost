@@ -1,4 +1,5 @@
 const logging = require('@tryghost/logging');
+const config = require('../../../../shared/config');
 
 /**
  * @TODO: move this middleware to Framework monorepo?
@@ -8,6 +9,11 @@ const logging = require('@tryghost/logging');
  * @param {import('express').NextFunction} next
  */
 module.exports = function logRequest(req, res, next) {
+    // Skip logging for redirect requests if configured
+    if (config.get('server:suppressRedirectRequestLogging') && req.originalUrl.startsWith('/r/')) {
+        return next();
+    }
+
     const startTime = Date.now();
 
     function logResponse() {

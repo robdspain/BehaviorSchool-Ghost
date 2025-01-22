@@ -18,7 +18,9 @@ module.exports = function setupParentApp() {
     }
 
     parentApp.use(mw.requestId);
-    parentApp.use(mw.logRequest);
+    if (!config.get('server:suppressRequestLogging')) {
+        parentApp.use(mw.logRequest);
+    }
 
     // Register event emitter on req/res to trigger cache invalidation webhook event
     parentApp.use(mw.emitEvents);
