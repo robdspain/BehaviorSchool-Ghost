@@ -197,7 +197,8 @@
     "linkClickTrackingCacheMemberUuid": false,
     "backgroundJobs": {
         "emailAnalytics": true,
-        "clickTrackingLastSeenAtUpdater": true
+        "clickTrackingLastSeenAtUpdater": true,
+        "clickTracking": false
     },
     "portal": {
         "url": "https://cdn.jsdelivr.net/ghost/portal@~{version}/umd/portal.min.js",
