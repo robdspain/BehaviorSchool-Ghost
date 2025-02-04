@@ -3,16 +3,14 @@ const debug = require('@tryghost/debug');
 const logging = require('@tryghost/logging');
 const metrics = require('@tryghost/metrics');
 const errors = require('@tryghost/errors');
-const MailAdapterBase = require('../../core/core/server/adapters/mail/MailAdapterBase');
 
-module.exports = class MailgunClient extends MailAdapterBase {
+module.exports = class MailgunClient {
     #config;
     #settings;
 
     static DEFAULT_BATCH_SIZE = 1000;
 
     constructor({config, settings}) {
-        super();
         this.#config = config;
         this.#settings = settings;
     }

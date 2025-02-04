@@ -3,16 +3,14 @@ const logging = require('@tryghost/logging');
 const metrics = require('@tryghost/metrics');
 const errors = require('@tryghost/errors');
 const {ServerClient} = require('postmark');
-const MailAdapterBase = require('../../core/core/server/adapters/mail/MailAdapterBase');
 
-module.exports = class PostmarkClient extends MailAdapterBase {
+module.exports = class PostmarkClient {
     #config;
     #settings;
 
     static DEFAULT_BATCH_SIZE = 500;
 
     constructor({config, settings}) {
-        super();
         this.#config = config;
         this.#settings = settings;
     }
