@@ -7,10 +7,11 @@ import {
     Actor,
     FollowAccount,
     type GetAccountFollowsResponse,
+    type PostType,
     type Profile,
     type SearchResults
 } from '../api/activitypub';
-import {Activity} from '../components/activities/ActivityItem';
+import {Activity} from '@tryghost/admin-x-framework/api/activitypub';
 import {
     type UseInfiniteQueryResult,
     useInfiniteQuery,
@@ -18,6 +19,7 @@ import {
     useQuery,
     useQueryClient
 } from '@tanstack/react-query';
+import {mapPostToActivity} from '../utils/posts';
 
 let SITE_URL: string;
 
@@ -648,4 +650,51 @@ export function useAccountFollowsForUser(handle: string, type: AccountFollowsTyp
             return prevPage.next;
         }
     });
+}
+
+export function useFeedForUser(handle: string, postType: PostType) {
+    const queryKey = [`feed:${handle}:${postType}`];
+    const queryClient = useQueryClient();
+
+    const feedQuery = useInfiniteQuery({
+        queryKey,
+        async queryFn({pageParam}: {pageParam?: string}) {
+            const siteUrl = await getSiteUrl();
+            const api = createActivityPubAPI(handle, siteUrl);
+            return api.getFeed(postType, pageParam).then((response) => {
+                return {
+                    posts: response.posts.map(mapPostToActivity),
+                    next: response.next
+                };
+            });
+        },
+        getNextPageParam(prevPage) {
+            return prevPage.next;
+        }
+    });
+
+    const updateActivity = (id: string, updated: Partial<Activity>) => {
+        queryClient.setQueryData(queryKey, (current: {pages: {posts: Activity[]}[]} | undefined) => {
+            if (!current) {
+                return current;
+            }
+
+            return {
+                ...current,
+                pages: current.pages.map((page: {posts: Activity[]}) => {
+                    return {
+                        ...page,
+                        posts: page.posts.map((item: Activity) => {
+                            if (item.id === id) {
+                                return {...item, ...updated};
+                            }
+                            return item;
+                        })
+                    };
+                })
+            };
+        });
+    };
+
+    return {feedQuery, updateActivity};
 }

@@ -6,8 +6,7 @@ import articleBodyStyles from '../articleBodyStyles';
 import getUsername from '../../utils/get-username';
 import {OptionProps, SingleValueProps, components} from 'react-select';
 
-import {type Activity} from '../activities/ActivityItem';
-import {ActorProperties, ObjectProperties} from '@tryghost/admin-x-framework/api/activitypub';
+import {Activity, ActorProperties, ObjectProperties} from '@tryghost/admin-x-framework/api/activitypub';
 import {Button, Icon, LoadingIndicator, Modal, Popover, Select, SelectOption} from '@tryghost/admin-x-design-system';
 import {renderTimestamp} from '../../utils/render-timestamp';
 import {useBrowseSite} from '@tryghost/admin-x-framework/api/site';
