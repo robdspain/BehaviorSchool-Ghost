@@ -130,7 +130,7 @@ module.exports = class MailgunClient extends MailAdapterBase {
      * @param {Object} mailgunConfig
      * @param {Object} mailgunOptions
      */
-    async getEvents(mailgunInstance, mailgunConfig, mailgunOptions) {
+    async getEventsFromMailgun(mailgunInstance, mailgunConfig, mailgunOptions) {
         const startTime = Date.now();
         try {
             const page = await mailgunInstance.events.get(mailgunConfig.domain, mailgunOptions);

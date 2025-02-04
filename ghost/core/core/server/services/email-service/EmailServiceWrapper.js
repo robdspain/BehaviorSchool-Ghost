@@ -1,11 +1,9 @@
 const debug = require('@tryghost/debug')('i18n');
 const logging = require('@tryghost/logging');
 const url = require('../../api/endpoints/utils/serializers/output/utils/url');
-const adapterManager = require('../adapter-manager');
-const configService = require('../../../shared/config');
-const settingsCache = require('../../../shared/settings-cache');
-const mailClient = adapterManager.getAdapter('mail', undefined, {config: configService, settings: settingsCache});
 const events = require('../../lib/common/events');
+const MailgunClient = require('@tryghost/mailgun-client');
+const PostmarkClient = require('@tryghost/postmark-client');
 
 class EmailServiceWrapper {
     getPostUrl(post) {
@@ -14,8 +12,18 @@ class EmailServiceWrapper {
         return jsonModel.url;
     }
 
-    getMailClient() {
-        return mailClient;
+    getMailClient(settingsCache, configService) {
+        if (settingsCache.get('bulk_email_provider') === 'postmark') {
+            // Postmark client instance for email provider
+            return new PostmarkClient({
+                config: configService, settings: settingsCache
+            });
+        }
+
+        // Mailgun client instance for email provider
+        return new MailgunClient({
+            config: configService, settings: settingsCache
+        });
     }
 
     init() {
@@ -25,6 +33,8 @@ class EmailServiceWrapper {
 
         const {EmailService, EmailController, EmailRenderer, SendingService, BatchSendingService, EmailSegmenter, BulkEmailProvider} = require('@tryghost/email-service');
         const {Post, Newsletter, Email, EmailBatch, EmailRecipient, Member} = require('../../models');
+        const configService = require('../../../shared/config');
+        const settingsCache = require('../../../shared/settings-cache');
         const settingsHelpers = require('../settings-helpers');
         const jobsService = require('../jobs');
         const membersService = require('../members');
@@ -51,6 +61,8 @@ class EmailServiceWrapper {
             logging.info(`Capturing error for mailgun email provider service`);
             sentry.captureException(error);
         };
+
+        let mailClient = this.getMailClient(settingsCache, configService);
 
         const bulkEmailProvider = new BulkEmailProvider({
             mailClient,
