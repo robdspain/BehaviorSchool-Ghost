@@ -27,7 +27,7 @@ describe('Bulk Email Provider', function () {
                 mailClient,
                 errorHandler: () => {}
             });
-            
+
             const deliveryTime = new Date();
 
             const response = await bulkEmailProvider.send({
@@ -257,8 +257,8 @@ describe('Bulk Email Provider', function () {
             mailgunClient = {
                 getTargetDeliveryWindow: getTargetDeliveryWindowStub
             };
-            
-            const provider = new MailgunEmailProvider({
+
+            const provider = new BulkEmailProvider({
                 mailgunClient,
                 errorHandler: () => {}
             });
