@@ -23,7 +23,7 @@
                         <div class="gh-user-avatar relative" style={{background-image-style this.session.user.profileImageUrl}}>
                             {{#if (and this.whatsNew.hasNew (not this.whatsNew.hasNewFeatured))}}<span class="absolute dib ba b--white br-100 gh-whats-new-badge-account"></span>{{/if}}
                         </div>
-                        {{svg-jar "arrow-down" class="w3 mr1 fill-darkgrey"}}
+                        {{svg-jar "arrow-down" class="w3 mr1 fill-darkgrey" data-test-nav="arrow-down"}}
                     </div>
                 </dropdown.Trigger>
 
@@ -53,7 +53,7 @@
                         {{else}}
                             <li>
                                 <button class="dropdown-item" tabindex="-1" data-test-nav="whatsnew" type="button" {{on "click" this.openWhatsNew}}>
-                                    What's new?
+                                    What’s new?
                                     {{#if this.whatsNew.hasNew}}
                                         <div class="flex-grow-1 flex justify-end"><span class="dib w2 h2 top-0 right-0 bg-green br-100"></span></div>
                                     {{/if}}

@@ -43,23 +43,30 @@ class LocalStorageBase extends StorageBase {
      * Saves the file to storage (the file system)
      * - returns a promise which ultimately returns the full url to the uploaded file
      *
-     * @param {StorageBase.Image} file
+     * @param {Object} file
+     * @param {String} [file.path] -- The original path of the file
+     * @param {String} [file.name] -- The original name of the file
+     * @param {Boolean} [file.keepOriginalName] -- If true, skip generating a new filename
      * @param {String} targetDir
      * @returns {Promise<String>}
      */
     async save(file, targetDir) {
-        let targetFilename;
+        // The base implementation of `getTargetDir` returns the format this.storagePath/YYYY/MM, e.g. /content/images/2025/01
+        const directory = targetDir || this.getTargetDir(this.storagePath);
+        const originalFilePath = file.path;
 
-        // NOTE: the base implementation of `getTargetDir` returns the format this.storagePath/YYYY/MM
-        targetDir = targetDir || this.getTargetDir(this.storagePath);
-
-        const filename = await this.getUniqueFileName(file, targetDir);
-
-        targetFilename = filename;
-        await fs.mkdirs(targetDir);
+        // If the `keepOriginalName` flag is set, don't generate a new filename
+        // Otherwise, generate a unique secure filename, composed of a 16-character random hash and truncated to be under 255 bytes, e.g. image-a1b2c3d4e5f6g789.png
+        let targetFilePath;
+        if (file.keepOriginalName) {
+            targetFilePath = path.join(directory, file.name);
+        } else {
+            targetFilePath = this.getUniqueSecureFilePath(file, directory);
+        }
 
         try {
-            await fs.copy(file.path, targetFilename);
+            await fs.mkdirs(directory);
+            await fs.copy(originalFilePath, targetFilePath);
         } catch (err) {
             if (err.code === 'ENAMETOOLONG') {
                 throw new errors.BadRequestError({err});
@@ -74,7 +81,30 @@ class LocalStorageBase extends StorageBase {
             urlUtils.urlJoin('/',
                 urlUtils.getSubdir(),
                 this.staticFileURLPrefix,
-                path.relative(this.storagePath, targetFilename))
+                path.relative(this.storagePath, targetFilePath))
+        ).replace(new RegExp(`\\${path.sep}`, 'g'), '/');
+
+        return fullUrl;
+    }
+
+    /**
+     * Saves a buffer in the targetPath
+     * @param {Buffer} buffer is an instance of Buffer
+     * @param {String} targetPath relative path NOT including storage path to which the buffer should be written
+     * @returns {Promise<String>} a URL to retrieve the data
+     */
+    async saveRaw(buffer, targetPath) {
+        const storagePath = path.join(this.storagePath, targetPath);
+        const targetDir = path.dirname(storagePath);
+
+        await fs.mkdirs(targetDir);
+        await fs.writeFile(storagePath, buffer);
+
+        // For local file system storage can use relative path so add a slash
+        const fullUrl = (
+            urlUtils.urlJoin('/', urlUtils.getSubdir(),
+                this.staticFileURLPrefix,
+                targetPath)
         ).replace(new RegExp(`\\${path.sep}`, 'g'), '/');
 
         return fullUrl;

@@ -8,19 +8,10 @@ interface AppProps {
     designSystem: DesignSystemAppProps;
 }
 
-const modals = {
-    paths: {
-        'follow-site': 'FollowSite',
-        'view-following': 'ViewFollowing',
-        'view-followers': 'ViewFollowers'
-    },
-    load: async () => import('./components/modals')
-};
-
 const App: React.FC<AppProps> = ({framework, designSystem}) => {
     return (
         <FrameworkProvider {...framework}>
-            <RoutingProvider basePath='activitypub' modals={modals}>
+            <RoutingProvider basePath='activitypub'>
                 <DesignSystemApp className='admin-x-activitypub' {...designSystem}>
                     <MainContent />
                 </DesignSystemApp>

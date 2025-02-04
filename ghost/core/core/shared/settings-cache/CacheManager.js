@@ -19,6 +19,7 @@ class CacheManager {
     constructor({publicSettings}) {
         // settingsCache holds cached settings, keyed by setting.key, contains the JSON version of the model
         this.settingsCache;
+        this.settingsOverrides = {};
         this.publicSettings = publicSettings;
         this.calculatedFields = [];
 
@@ -53,8 +54,20 @@ class CacheManager {
         if (!this.settingsCache) {
             return;
         }
+        
+        let override;
+        if (this.settingsOverrides && Object.keys(this.settingsOverrides).includes(key)) {
+            // Wrap the override value in an object in case it's a boolean
+            override = {value: this.settingsOverrides[key]};
+        }
 
         const cacheEntry = this.settingsCache.get(key);
+
+        if (override) {
+            cacheEntry.value = override.value;
+            cacheEntry.is_read_only = true;
+        }
+
         if (!cacheEntry) {
             return;
         }
@@ -64,11 +77,20 @@ class CacheManager {
             return cacheEntry;
         }
 
+        // TODO: I think we should be a little smarter here and deserialize the value based on the type
+        //       rather than trying to parse everything as JSON, which is very slow when we do it hundreds
+        //       of times per request.
+
         // Default behavior is to try to resolve the value and return that
         try {
             // CASE: handle literal false
             if (cacheEntry.value === false || cacheEntry.value === 'false') {
                 return false;
+            }
+
+            // CASE: hotpath early return for strings which are already strings
+            if (cacheEntry.type === 'string' && typeof cacheEntry.value === 'string') {
+                return cacheEntry.value || null;
             }
 
             // CASE: if a string contains a number e.g. "1", JSON.parse will auto convert into integer
@@ -133,7 +155,7 @@ class CacheManager {
         const all = {};
 
         keys.forEach((key) => {
-            all[key] = _.cloneDeep(this.settingsCache.get(key));
+            all[key] = _.cloneDeep(this.get(key, {resolve: false}));
         });
 
         return all;
@@ -163,10 +185,12 @@ class CacheManager {
      * @param {Bookshelf.Collection<Settings>} settingsCollection
      * @param {Array} calculatedFields
      * @param {Object} cacheStore - cache storage instance base on Cache Base Adapter
+     * @param {Object} settingsOverrides - key/value pairs of settings which are overridden (i.e. via config)
      * @return {Object} - filled out instance for Cache Base Adapter
      */
-    init(events, settingsCollection, calculatedFields, cacheStore) {
+    init(events, settingsCollection, calculatedFields, cacheStore, settingsOverrides) {
         this.settingsCache = cacheStore;
+        this.settingsOverrides = settingsOverrides;
         // First, reset the cache and
         this.reset(events);
 

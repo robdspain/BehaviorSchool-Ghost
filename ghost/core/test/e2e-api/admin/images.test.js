@@ -13,6 +13,7 @@ const {anyErrorId} = matchers;
 const {imageSize} = require('../../../core/server/lib/image');
 const configUtils = require('../../utils/configUtils');
 const logging = require('@tryghost/logging');
+const crypto = require('crypto');
 
 const images = [];
 let agent, frontendAgent, ghostServer;
@@ -49,17 +50,19 @@ const uploadImageRequest = ({fileContents, filename, contentType, ref}) => {
  * @param {string} options.filename
  * @param {string} options.contentType
  * @param {string} [options.expectedFileName]
- * @param {string} [options.expectedOriginalFileName]
  * @param {string} [options.ref]
  * @param {boolean} [options.skipOriginal]
  * @returns
  */
-const uploadImageCheck = async ({path, filename, contentType, expectedFileName, expectedOriginalFileName, ref, skipOriginal}) => {
+const uploadImageCheck = async ({path, filename, contentType, expectedFileName, ref, skipOriginal}) => {
     const fileContents = await fs.readFile(path);
     const {body} = await uploadImageRequest({fileContents, filename, contentType, ref}).expectStatus(201);
-    expectedFileName = expectedFileName || filename;
 
-    assert.match(body.images[0].url, new RegExp(`${urlUtils.urlFor('home', true)}content/images/\\d+/\\d+/${expectedFileName}`));
+    expectedFileName = expectedFileName || filename;
+    const parsedFileName = p.parse(expectedFileName);
+    const expectedFileNameRegex = `${parsedFileName.name}-\\w{16}${parsedFileName.ext}`;
+
+    assert.match(body.images[0].url, new RegExp(`${urlUtils.urlFor('home', true)}content/images/\\d+/\\d+/${expectedFileNameRegex}`));
     assert.equal(body.images[0].ref, ref === undefined ? null : ref);
 
     const relativePath = body.images[0].url.replace(urlUtils.urlFor('home', true), '/');
@@ -67,13 +70,31 @@ const uploadImageCheck = async ({path, filename, contentType, expectedFileName, 
     images.push(filePath);
 
     // Get original image path
-    const originalFilePath = skipOriginal ? filePath : (expectedOriginalFileName ? filePath.replace(expectedFileName, expectedOriginalFileName) : imageTransform.generateOriginalImageName(filePath));
-    images.push(originalFilePath);
+    let originalFilePath = filePath;
+    if (!skipOriginal) {
+        originalFilePath = imageTransform.generateOriginalImageName(filePath);
+        images.push(originalFilePath);
+    }
 
     // Check the image is saved to disk
     const saved = await fs.readFile(originalFilePath);
-    assert.equal(saved.length, fileContents.length);
-    assert.deepEqual(saved, fileContents);
+
+    // Check the content of the saved image:
+    // - SVGs are sanitized before save, so their content is smaller or equal than the original file
+    // - Non-SVGs are saved as-is, so their content should be the same as the original file
+    if (contentType.includes('svg')) {
+        assert.ok(saved.length <= fileContents.length);
+        assert.ok(!saved.includes('<script'));
+        assert.ok(!saved.includes('<foreignObject'));
+        assert.ok(!saved.includes('<iframe'));
+        assert.ok(!saved.includes('<embed'));
+        assert.ok(!saved.includes('onclick'));
+        assert.ok(!saved.includes('href'));
+        assert.ok(!saved.includes('xlink:href'));
+    } else {
+        assert.equal(saved.length, fileContents.length);
+        assert.deepEqual(saved, fileContents);
+    }
 
     const savedResized = await fs.readFile(filePath);
     assert.ok(savedResized.length <= fileContents.length); // should always be smaller
@@ -176,28 +197,55 @@ describe('Images API', function () {
         await uploadImageCheck({path: originalFilePath, filename: 'ghosticon.webp', contentType: 'image/webp'});
     });
 
-    it('Can upload a svg', async function () {
+    it('Can upload a valid svg', async function () {
         const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.svg');
-        await uploadImageCheck({path: originalFilePath, filename: 'ghost.svg', contentType: 'image/svg+xml', skipOriginal: true});
+        await uploadImageCheck({path: originalFilePath, filename: 'ghost-logo.svg', contentType: 'image/svg+xml', skipOriginal: true});
+    });
+
+    it('Can upload a svg that needs sanitization', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/svg-with-unsafe-script.svg');
+        await uploadImageCheck({path: originalFilePath, filename: 'svg-with-unsafe-script.svg', contentType: 'image/svg+xml', skipOriginal: true});
+    });
+
+    it('Errors when uploading an invalid SVG', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/svg-malformed.svg');
+        const fileContents = await fs.readFile(originalFilePath);
+        await uploadImageRequest({fileContents, filename: 'svg-malformed.svg', contentType: 'image/svg+xml'})
+            .expectStatus(415)
+            .matchBodySnapshot({
+                errors: [{
+                    id: anyErrorId,
+                    message: 'Please select a valid SVG image'
+                }]
+            });
+    });
+
+    it('Can upload a valid zipped SVG', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.svgz');
+        await uploadImageCheck({path: originalFilePath, filename: 'ghost-logo.svgz', contentType: 'image/svg+xml', skipOriginal: true});
+    });
+
+    it('Can upload a zipped svg that needs sanitization', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/svgz-with-unsafe-script.svgz');
+        await uploadImageCheck({path: originalFilePath, filename: 'svg-with-unsafe-script.svgz', contentType: 'image/svg+xml', skipOriginal: true});
+    });
+
+    it('Errors when uploading an invalid zipped SVG', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/svgz-malformed.svgz');
+        const fileContents = await fs.readFile(originalFilePath);
+        await uploadImageRequest({fileContents, filename: 'svgz-malformed.svgz', contentType: 'image/svg+xml'})
+            .expectStatus(415)
+            .matchBodySnapshot({
+                errors: [{
+                    id: anyErrorId,
+                    message: 'Please select a valid SVG image'
+                }]
+            });
     });
 
     it('Can upload a square profile image', async function () {
         const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/loadingcat_square.gif');
         await uploadImageCheck({path: originalFilePath, filename: 'loadingcat_square.gif', contentType: 'image/gif'});
-    });
-
-    it('Will error when filename is too long', async function () {
-        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.png');
-        const fileContents = await fs.readFile(originalFilePath);
-        const loggingStub = sinon.stub(logging, 'error');
-        await uploadImageRequest({fileContents, filename: `${'a'.repeat(300)}.png`, contentType: 'image/png'})
-            .expectStatus(400)
-            .matchBodySnapshot({
-                errors: [{
-                    id: anyErrorId
-                }]
-            });
-        sinon.assert.calledOnce(loggingStub);
     });
 
     it('Can not upload a json file', async function () {
@@ -256,12 +304,21 @@ describe('Images API', function () {
         sinon.assert.calledOnce(loggingStub);
     });
 
+    it('Can upload a file with a long name and the filename will be truncated to be under 253 bytes', async function () {
+        const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.png');
+        const ext = '.png';
+        const hash = `-${crypto.randomBytes(8).toString('hex')}`;
+        const truncatedNameLength = 253 - hash.length - ext.length;
+
+        await uploadImageCheck({path: originalFilePath, filename: `${'a'.repeat(300)}.png`, expectedFileName: `${'a'.repeat(truncatedNameLength)}.png`, contentType: 'image/png'});
+    });
+
     it('Can upload multiple images with the same name', async function () {
         const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.png');
         const originalFilePath2 = p.join(__dirname, '/../../utils/fixtures/images/ghosticon.jpg');
 
         await uploadImageCheck({path: originalFilePath, filename: 'a.png', contentType: 'image/png'});
-        await uploadImageCheck({path: originalFilePath2, filename: 'a.png', contentType: 'image/png', expectedFileName: 'a-1.png', expectedOriginalFileName: 'a-1_o.png'});
+        await uploadImageCheck({path: originalFilePath2, filename: 'a.png', contentType: 'image/png'});
     });
 
     it('Can upload image with number suffix', async function () {
@@ -271,12 +328,12 @@ describe('Images API', function () {
 
     it('Trims _o suffix from uploaded files', async function () {
         const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.png');
-        await uploadImageCheck({path: originalFilePath, filename: 'a-3_o.png', contentType: 'image/png', expectedFileName: 'a-3.png', expectedOriginalFileName: 'a-3_o.png'});
+        await uploadImageCheck({path: originalFilePath, filename: 'a-3_o.png', contentType: 'image/png', expectedFileName: 'a-3.png'});
     });
 
     it('Can use _o in uploaded file name, as long as it is not at the end', async function () {
         const originalFilePath = p.join(__dirname, '/../../utils/fixtures/images/ghost-logo.png');
-        await uploadImageCheck({path: originalFilePath, filename: 'a_o-3.png', contentType: 'image/png', expectedFileName: 'a_o-3.png', expectedOriginalFileName: 'a_o-3_o.png'});
+        await uploadImageCheck({path: originalFilePath, filename: 'a_o-3.png', contentType: 'image/png', expectedFileName: 'a_o-3.png'});
     });
 
     it('Can upload around midnight of month change', async function () {
@@ -342,7 +399,7 @@ describe('Images API', function () {
         const brokenPayload = '--boundary\r\nContent-Disposition: form-data; name=\"image\"; filename=\"example.png\"\r\nContent-Type: image/png\r\n\r\n';
 
         // eslint-disable-next-line no-undef
-        const brokenDataBlob = await (new Blob([brokenPayload, blob.slice(0, blob.size / 2)], {
+        const brokenDataBlob = await (new Blob([brokenPayload, blob.slice(0, Math.floor(blob.size / 2))], {
             type: 'multipart/form-data; boundary=boundary'
         })).text();
 
@@ -367,7 +424,7 @@ describe('Images API', function () {
         const brokenPayload = '--boundary\r\nContent-Disposition: form-data; name=\"image\"; filename=\"example.png\"\r\nContent-Type: image/png\r\n';
 
         // eslint-disable-next-line no-undef
-        const brokenDataBlob = await (new Blob([brokenPayload, blob.slice(0, blob.size / 2)], {
+        const brokenDataBlob = await (new Blob([brokenPayload, blob.slice(0, Math.floor(blob.size / 2))], {
             type: 'multipart/form-data; boundary=boundary'
         })).text();
 
