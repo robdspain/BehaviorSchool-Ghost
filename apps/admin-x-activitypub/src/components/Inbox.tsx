@@ -11,15 +11,14 @@ import getName from '../utils/get-name';
 import getUsername from '../utils/get-username';
 import {ActorProperties} from '@tryghost/admin-x-framework/api/activitypub';
 import {Button, Heading, LoadingIndicator} from '@tryghost/admin-x-design-system';
+import {PostType} from '../api/activitypub';
+import {handleProfileClick} from '../utils/handle-profile-click';
+import {handleViewContent} from '../utils/content-handlers';
 import {
-    GET_ACTIVITIES_QUERY_KEY_FEED,
-    GET_ACTIVITIES_QUERY_KEY_INBOX,
-    useActivitiesForUser,
+    useFeedForUser,
     useSuggestedProfiles,
     useUserDataForUser
 } from '../hooks/useActivityPubQueries';
-import {handleProfileClick} from '../utils/handle-profile-click';
-import {handleViewContent} from '../utils/content-handlers';
 import {useRouting} from '@tryghost/admin-x-framework/routing';
 
 type Layout = 'inbox' | 'feed';
@@ -31,29 +30,15 @@ interface InboxProps {
 const Inbox: React.FC<InboxProps> = ({layout}) => {
     const {updateRoute} = useRouting();
 
-    // Initialise activities for the inbox or feed
-    const typeFilter = layout === 'inbox'
-        ? ['Create:Article', 'Announce:Article']
-        : ['Create:Note', 'Announce:Note'];
+    // Initialise the feed
+    const postType = layout === 'inbox'
+        ? PostType.Article
+        : PostType.Note;
 
-    const {getActivitiesQuery, updateActivity} = useActivitiesForUser({
-        handle: 'index',
-        includeOwn: true,
-        filter: {
-            type: typeFilter
-        },
-        key: layout === 'inbox' ? GET_ACTIVITIES_QUERY_KEY_INBOX : GET_ACTIVITIES_QUERY_KEY_FEED
-    });
+    const {feedQuery, updateActivity} = useFeedForUser('index', postType);
+    const {data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading} = feedQuery;
 
-    const {data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading} = getActivitiesQuery;
-
-    const activities = (data?.pages.flatMap(page => page.data) ?? [])
-        // If there somehow are duplicate activities, filter them out so the list rendering doesn't break
-        .filter((activity, index, self) => index === self.findIndex(a => a.id === activity.id))
-        // Filter out replies
-        .filter((activity) => {
-            return !activity.object.inReplyTo;
-        });
+    const activities = (data?.pages.flatMap(page => page.posts) ?? []);
 
     // Initialise suggested profiles
     const {suggestedProfilesQuery} = useSuggestedProfiles('index', 3);
