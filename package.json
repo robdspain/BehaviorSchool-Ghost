@@ -11,18 +11,20 @@
     "ghost/*",
     "apps/*"
   ],
+
   "monorepo": {
     "public": false,
     "internalPackages": true,
     "repo": "https://github.com/TryGhost/Ghost",
     "scope": "@tryghost"
   },
+
   "eslintIgnore": [
     "**/node_modules/**"
   ],
 
   "engines": {
-    "node": "20.11.1"
+    "node": "22.13.1"
   },
 
   "resolutions": {
