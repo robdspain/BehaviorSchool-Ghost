@@ -80,7 +80,8 @@
       "codemirror",
       "faker",
       "ember-cli-code-coverage",
-      "ember-cli-terser"
+      "ember-cli-terser",
+      "gscan"
     ],
     "ignorePaths": [
       "test",
